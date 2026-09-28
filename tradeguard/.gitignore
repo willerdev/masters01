@@ -1,0 +1,11 @@
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+*.pyc
+node_modules/
+.next/
+frontend/.next/
+dist/
+*.egg-info/
+.coverage

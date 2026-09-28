@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: tradeguard
+      POSTGRES_PASSWORD: tradeguard
+      POSTGRES_DB: tradeguard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradeguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://tradeguard:tradeguard@postgres:5432/tradeguard
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    command: ["celery", "-A", "celery_app.celery", "worker", "--beat", "--loglevel=INFO"]
+    working_dir: /srv/workers
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://tradeguard:tradeguard@postgres:5432/tradeguard
+      REDIS_URL: redis://redis:6379/0
+      PYTHONPATH: /srv/backend:/srv/risk-engine:/srv/shared/python:/srv/workers
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  redisdata:
