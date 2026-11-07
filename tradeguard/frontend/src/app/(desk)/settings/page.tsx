@@ -4,6 +4,156 @@ import { FormEvent, useEffect, useState } from "react";
 import { PageTitle } from "@/components/Shell";
 import { apiJson } from "@/lib/api";
 
+type TelegramStatus = { connected: boolean; chat_id: string; bot_username: string };
+
+function TelegramNotifications() {
+  const [status, setStatus] = useState<TelegramStatus | null>(null);
+  const [chatId, setChatId] = useState("");
+  const [msg, setMsg] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiJson<TelegramStatus>("/api/v1/notifications/telegram")
+      .then((body) => {
+        setStatus(body);
+        if (body.chat_id) setChatId(body.chat_id);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  async function onConnect(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaving(true);
+    setMsg("");
+    try {
+      await apiJson("/api/v1/notifications/telegram", {
+        method: "POST",
+        body: JSON.stringify({ chat_id: chatId.trim() }),
+      });
+      setStatus((prev) => prev ? { ...prev, connected: true, chat_id: chatId.trim() } : prev);
+      setMsg("Connected! A confirmation message has been sent to your Telegram.");
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Could not connect Telegram.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDisconnect() {
+    setSaving(true);
+    setMsg("");
+    try {
+      await apiJson("/api/v1/notifications/telegram", { method: "DELETE" });
+      setStatus((prev) => prev ? { ...prev, connected: false, chat_id: "" } : prev);
+      setChatId("");
+      setMsg("Telegram disconnected.");
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Could not disconnect Telegram.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const botLink = status?.bot_username ? `https://t.me/${status.bot_username}` : null;
+
+  return (
+    <section>
+      <PageTitle
+        title="Telegram notifications"
+        detail="Connect your personal Telegram to receive trade alerts, risk warnings, and account notifications directly in chat."
+      />
+
+      {status?.connected ? (
+        <div
+          className="flex items-start justify-between gap-4 border border-line rounded p-4 bg-panel"
+          style={{ borderColor: "var(--profit)" }}
+        >
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span
+                className="pill ok"
+                style={{ color: "var(--profit)", background: "color-mix(in srgb, var(--profit) 14%, transparent)" }}
+              >
+                Connected
+              </span>
+              {status.bot_username && (
+                <span className="text-sm" style={{ color: "var(--muted)" }}>@{status.bot_username}</span>
+              )}
+            </div>
+            <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
+              Chat ID: <span className="num">{status.chat_id}</span>
+            </p>
+          </div>
+          <button className="danger" type="button" onClick={onDisconnect} disabled={saving}>
+            Disconnect
+          </button>
+        </div>
+      ) : (
+        <form className="flex flex-col gap-3" onSubmit={onConnect} autoComplete="off">
+          {botLink ? (
+            <div className="border border-line rounded p-3 bg-panel-2 text-sm flex flex-col gap-2">
+              <p style={{ color: "var(--ink)" }}>
+                <strong>Step 1</strong> — Open the bot and send it any message:
+              </p>
+              <a
+                href={botLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="primary"
+                style={{ display: "inline-block", borderRadius: 6, padding: "7px 14px", background: "var(--accent)", color: "var(--on-accent)", fontWeight: 600, textDecoration: "none", width: "fit-content" }}
+              >
+                Open @{status?.bot_username} on Telegram ↗
+              </a>
+              <p className="mt-1" style={{ color: "var(--ink)" }}>
+                <strong>Step 2</strong> — Find your chat ID:
+                forward any message from the bot to{" "}
+                <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>
+                  @userinfobot
+                </a>{" "}
+                and it will reply with your numeric ID.
+              </p>
+            </div>
+          ) : (
+            <div className="border border-line rounded p-3 bg-panel-2 text-sm" style={{ color: "var(--muted)" }}>
+              To find your Telegram chat ID, forward any message to{" "}
+              <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>
+                @userinfobot
+              </a>{" "}
+              and it will reply with your numeric ID. You must message the platform bot at least once before connecting.
+            </div>
+          )}
+
+          <label className="text-sm flex flex-col gap-1" style={{ color: "var(--muted)" }}>
+            Your Telegram chat ID
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 123456789"
+              value={chatId}
+              onChange={(e) => setChatId(e.target.value)}
+              required
+              autoComplete="off"
+              className="num"
+            />
+          </label>
+          <button className="primary w-fit" type="submit" disabled={saving || !chatId.trim()}>
+            {saving ? "Connecting…" : "Connect Telegram"}
+          </button>
+        </form>
+      )}
+
+      {msg && (
+        <p
+          className="text-sm mt-3"
+          style={{ color: status?.connected && !msg.includes("not") ? "var(--profit)" : "var(--muted)" }}
+        >
+          {msg}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const [message, setMessage] = useState("");
   const [key, setKey] = useState("");
@@ -150,6 +300,9 @@ export default function SettingsPage() {
           <button className="primary" type="submit">Create key</button>
         </form>
         {key ? <p className="num break-all mt-3 text-sm">{key}</p> : null}
+      </section>
+      <section className="xl:col-span-2 max-w-xl">
+        <TelegramNotifications />
       </section>
       {message ? <p className="text-sm xl:col-span-2">{message}</p> : null}
     </div>
