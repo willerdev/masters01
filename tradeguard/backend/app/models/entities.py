@@ -1158,6 +1158,26 @@ class SystemEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class OnboardingProfile(Base):
+    """Stores the onboarding answers a user submits during the signup wizard."""
+
+    __tablename__ = "onboarding_profiles"
+    __table_args__ = (UniqueConstraint("user_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    email: Mapped[str] = mapped_column(String(320), default="")
+    age: Mapped[int] = mapped_column(Integer)
+    country: Mapped[str] = mapped_column(String(120))
+    wallet_network: Mapped[str] = mapped_column(String(40))
+    wallet_address: Mapped[str] = mapped_column(String(200))
+    activities: Mapped[list] = mapped_column(JsonDoc, default=list)
+    indices_broker: Mapped[str] = mapped_column(String(60), default="")
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 @event.listens_for(AuditLog, "before_update", propagate=True)
 def _audit_no_update(mapper, connection, target) -> None:  # noqa: ARG001
     raise PermissionError("audit logs are immutable")
