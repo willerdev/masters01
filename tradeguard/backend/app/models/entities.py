@@ -1158,6 +1158,21 @@ class SystemEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class UserNotificationChannel(Base):
+    """A personal notification destination a user connects (e.g. their own Telegram chat)."""
+
+    __tablename__ = "user_notification_channels"
+    __table_args__ = (UniqueConstraint("user_id", "channel"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(32))
+    destination: Mapped[str] = mapped_column(String(200))
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 class OnboardingProfile(Base):
     """Stores the onboarding answers a user submits during the signup wizard."""
 

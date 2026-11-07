@@ -18,6 +18,7 @@ from app.api.v1.recovery import router as recovery_router
 from app.api.v1.platform import router as platform_router
 from app.api.v1.router import router
 from app.api.v1.onboarding_routes import router as onboarding_router
+from app.api.v1.notification_routes import router as notification_router
 from app.api.v1.setup_routes import router as setup_router
 from app.core.telemetry import RequestTimer, telemetry
 from app.core.config import get_settings
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(router, prefix="/api/v1")
     app.include_router(onboarding_router, prefix="/api/v1")
+    app.include_router(notification_router, prefix="/api/v1")
     app.include_router(setup_router, prefix="/api/v1")
     app.include_router(platform_router, prefix="/api/v1")
     app.include_router(payments_router, prefix="/api/v1")
